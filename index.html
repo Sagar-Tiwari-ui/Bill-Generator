@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bhagwati Enterprises — Bill Generator</title>
+
+  <!-- SheetJS for XLSX parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    /* ─── RESET & BASE ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:       #1a1a2e;
+      --accent:    #c8102e;
+      --gold:      #b8860b;
+      --surface:   #fdf8f0;
+      --panel:     #ffffff;
+      --border:    #c9b99a;
+      --muted:     #7a6a55;
+      --input-bg:  #fffdf8;
+      --radius:    6px;
+      --shadow:    0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ─── APP LAYOUT ──────────────────────────────────────────────── */
+    .app-header {
+      background: var(--ink);
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 3px solid var(--accent);
+    }
+    .app-header .logo-mark {
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: var(--accent);
+    }
+    .app-header h1 {
+      font-size: 18px;
+      font-weight: normal;
+      letter-spacing: 1px;
+    }
+    .app-header span {
+      font-size: 12px;
+      color: #aaa;
+      margin-left: auto;
+      font-family: sans-serif;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 63px);
+    }
+
+    /* ─── LEFT PANEL (FORM) ───────────────────────────────────────── */
+    .form-panel {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 28px 24px;
+      overflow-y: auto;
+      height: calc(100vh - 63px);
+      position: sticky;
+      top: 0;
+    }
+
+    .section-title {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: sans-serif;
+      font-weight: bold;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .form-section { margin-bottom: 24px; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .field-row.trio {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    .field-row.solo {
+      grid-template-columns: 1fr;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    label {
+      font-size: 11px;
+      font-family: sans-serif;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    input, select, textarea {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: 'Georgia', serif;
+      color: var(--ink);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(200,16,46,0.08);
+    }
+    textarea { resize: vertical; min-height: 64px; }
+
+    /* ─── XLSX UPLOAD ─────────────────────────────────────────────── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      font-family: sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      position: relative;
+    }
+    .upload-zone:hover { border-color: var(--accent); background: #fff5f5; }
+    .upload-zone input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .upload-zone .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+    .upload-zone.loaded { border-color: #2e7d32; background: #f1f8f1; color: #2e7d32; }
+
+    /* ─── ITEMS TABLE ─────────────────────────────────────────────── */
+    .items-list { margin-top: 10px; }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 60px 70px 24px;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .item-row select { font-size: 12px; padding: 6px 8px; }
+    .item-row input  { font-size: 12px; padding: 6px 8px; }
+
+    .btn-icon {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 24px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      transition: background 0.15s;
+      padding: 0;
+    }
+    .btn-icon:hover { background: #fff0f0; }
+
+    .add-item-btn {
+      background: none;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 7px;
+      width: 100%;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: sans-serif;
+      color: var(--muted);
+      transition: all 0.15s;
+      margin-top: 4px;
+    }
+    .add-item-btn:hover { border-color: var(--accent); color: var(--accent); background: #fff5f5; }
+
+    /* ─── GST TOGGLE ──────────────────────────────────────────────── */
+    .gst-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .gst-row .field { flex: 1; }
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: sans-serif;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--input-bg);
+      height: 36px;
+    }
+    .toggle-wrap input[type=checkbox] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* ─── GENERATE BUTTON ─────────────────────────────────────────── */
+    .generate-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 14px;
+      font-family: 'Georgia', serif;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .generate-btn:hover { background: #a00d25; }
+    .generate-btn:active { transform: scale(0.98); }
+
+    /* ─── RIGHT PANEL (PREVIEW) ───────────────────────────────────── */
+    .preview-panel {
+      background: #e8e4df;
+      padding: 32px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .preview-toolbar {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      font-family: sans-serif;
+    }
+    .preview-toolbar span {
+      font-size: 12px;
+      color: #666;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .print-btn {
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 18px;
+      font-size: 12px;
+      font-family: sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: background 0.2s;
+    }
+    .print-btn:hover { background: #333; }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-family: sans-serif;
+      font-size: 14px;
+      gap: 10px;
+      text-align: center;
+    }
+    .empty-state .big { font-size: 48px; }
+
+    /* ─── INVOICE PREVIEW ─────────────────────────────────────────── */
+    #invoice-preview {
+      width: 760px;
+      background: #fff;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.18);
+      border-radius: 2px;
+      display: none;
+    }
+
+    /* ─── PRINT STYLES ────────────────────────────────────────────── */
+    @media print {
+      body { background: #fff; }
+      .app-header, .form-panel, .preview-toolbar, .print-btn { display: none !important; }
+      .workspace { display: block; }
+      .preview-panel { background: #fff; padding: 0; display: block; }
+      #invoice-preview {
+        display: block !important;
+        width: 100%;
+        box-shadow: none;
+        border-radius: 0;
+      }
+      @page { size: A4; margin: 10mm; }
+    }
+
+    /* ─── INVOICE INTERNAL STYLES ─────────────────────────────────── */
+    .inv {
+      font-family: 'Arial', sans-serif;
+      font-size: 12px;
+      color: #111;
+      padding: 20px 24px;
+    }
+
+    .inv-top-label {
+      text-align: center;
+      font-weight: bold;
+      font-size: 11px;
+      border: 1px solid #333;
+      border-bottom: none;
+      padding: 3px;
+      letter-spacing: 2px;
+      background: #f5f5f5;
+    }
+
+    .inv-header-box {
+      border: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+    }
+
+    .inv-firm-name {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #1a1a2e;
+    }
+    .inv-firm-sub { font-size: 11px; color: #333; margin-top: 2px; line-height: 1.6; }
+    .inv-firm-sub strong { color: #111; }
+
+    .inv-logo-block {
+      text-align: right;
+      border-left: 2px solid #ddd;
+      padding-left: 14px;
+    }
+    .inv-logo-text {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .inv-logo-sub { font-size: 11px; color: #666; }
+    .inv-orig { font-size: 9px; color: #999; text-align: right; }
+
+    /* Meta row */
+    .inv-meta-grid {
+      border: 1px solid #333;
+      border-top: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .inv-meta-cell {
+      padding: 4px 8px;
+      border-right: 1px solid #ccc;
+      font-size: 11px;
+      display: flex;
+      gap: 4px;
+    }
+    .inv-meta-cell:last-child { border-right: none; }
+    .inv-meta-cell .k { color: #555; min-width: 100px; }
+    .inv-meta-cell .v { font-weight: bold; }
+
+    .inv-meta-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid #333;
+      border-top: none;
+    }
+    .inv-meta-row .inv-meta-cell { border-right: 1px solid #ccc; }
+    .inv-meta-row .inv-meta-cell:last-child { border-right: none; }
+
+    /* Billed to / shipped to */
+    .inv-party-row {
+      border: 1px solid #333;
+      border-top: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .inv-party {
+      padding: 8px 10px;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+    .inv-party + .inv-party { border-left: 1px solid #ccc; }
+    .inv-party .label { font-weight: bold; font-size: 11px; border-bottom: 1px solid #ddd; margin-bottom: 4px; padding-bottom: 2px; }
+    .inv-party .firm { font-size: 13px; font-weight: bold; }
+
+    /* Items table */
+    .inv-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #333;
+      border-top: none;
+      font-size: 11px;
+    }
+    .inv-table th {
+      background: #f0f0f0;
+      border: 1px solid #aaa;
+      padding: 5px 6px;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .inv-table td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+    .inv-table td.num { text-align: right; }
+    .inv-table td.cen { text-align: center; }
+    .inv-table .desc-main { font-weight: bold; font-size: 12px; }
+    .inv-table .desc-sub { font-size: 10px; color: #555; margin-top: 2px; }
+
+    /* Totals */
+    .inv-totals-row {
+      border: 1px solid #333;
+      border-top: none;
+      display: grid;
+      grid-template-columns: 1fr 240px;
+    }
+    .inv-terms {
+      padding: 8px 10px;
+      font-size: 10px;
+      color: #555;
+      line-height: 1.8;
+      border-right: 1px solid #ccc;
+    }
+    .inv-terms strong { color: #111; font-size: 11px; }
+
+    .inv-totals {
+      padding: 6px 10px;
+    }
+    .inv-total-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      font-size: 11px;
+      border-bottom: 1px solid #eee;
+    }
+    .inv-total-line.grand {
+      font-weight: bold;
+      font-size: 13px;
+      border-top: 2px solid #333;
+      border-bottom: none;
+      padding-top: 5px;
+      color: var(--accent);
+    }
+    .inv-total-line .lbl { color: #555; }
+
+    /* Bank + declaration */
+    .inv-footer-row {
+      border: 1px solid #333;
+      border-top: none;
+      display: grid;
+      grid-template-columns: 1fr 140px 1fr;
+      font-size: 10px;
+    }
+    .inv-bank { padding: 8px 10px; line-height: 1.8; border-right: 1px solid #ccc; }
+    .inv-bank strong { font-size: 11px; display: block; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+    .inv-qr { border-right: 1px solid #ccc; display: flex; align-items: center; justify-content: center; padding: 8px; }
+    .inv-qr-placeholder { width: 100px; height: 100px; border: 1px dashed #aaa; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #aaa; text-align: center; }
+    .inv-sign { padding: 8px 10px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; }
+    .inv-sign .for { font-size: 11px; font-weight: bold; }
+    .inv-sign .auth { font-size: 9px; color: #777; }
+
+    .inv-decl {
+      border: 1px solid #333;
+      border-top: none;
+      padding: 6px 10px;
+      font-size: 9px;
+      color: #555;
+      text-align: center;
+      background: #fafafa;
+    }
+    .inv-decl strong { color: #111; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-mark">BI</div>
+  <h1>Bhagwati Enterprises &mdash; Bill Generator</h1>
+  <span>Tax Invoice System</span>
+</header>
+
+<div class="workspace">
+
+  <!-- ══ LEFT: FORM ══════════════════════════════════════════════ -->
+  <aside class="form-panel">
+
+    <!-- INVOICE META -->
+    <div class="form-section">
+      <div class="section-title">Invoice Details</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Invoice No.</label>
+          <input type="text" id="inv_no" placeholder="GI/25-26/1112" />
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="inv_date" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Place of Supply</label>
+          <input type="text" id="place_supply" placeholder="NEW DELHI" />
+        </div>
+        <div class="field">
+          <label>Transport</label>
+          <input type="text" id="transport" placeholder="BY ROAD" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Station</label>
+          <input type="text" id="station" placeholder="TANAKPUR (UK)" />
+        </div>
+        <div class="field">
+          <label>E-Way Bill No.</label>
+          <input type="text" id="eway" placeholder="(optional)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- BUYER DETAILS -->
+    <div class="form-section">
+      <div class="section-title">Billed / Shipped To</div>
+      <div class="field field-row solo">
+        <div class="field">
+          <label>Company / Firm Name</label>
+          <input type="text" id="buyer_name" placeholder="Client Firm Name" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Address</label>
+        <textarea id="buyer_addr" placeholder="Full address with PIN"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>GSTIN/UIN</label>
+          <input type="text" id="buyer_gstin" placeholder="GSTIN Number" />
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="buyer_state" placeholder="State name" />
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS FROM XLSX -->
+    <div class="form-section">
+      <div class="section-title">Products (Load from XLSX)</div>
+
+      <!-- AUTO-LOAD STATUS -->
+      <div id="auto-status" style="
+        border-radius:6px;padding:10px 12px;font-family:sans-serif;
+        font-size:12px;display:flex;align-items:center;gap:10px;
+        background:#fff8e1;border:1px solid #ffe082;color:#795548;
+      ">
+        <span id="auto-icon">⏳</span>
+        <span id="auto-msg">Looking for <strong>products.xlsx</strong> in the same folder…</span>
+      </div>
+
+      <!-- FALLBACK: manual upload (shown only if auto-load fails) -->
+      <div class="upload-zone" id="upload-zone" style="margin-top:8px;display:none;">
+        <input type="file" id="xlsx-file" accept=".xlsx,.xls" onchange="loadXLSXFromFile(this)" />
+        <span class="icon">📄</span>
+        <div>Or click to manually select your XLSX</div>
+        <div style="font-size:11px;margin-top:4px;color:#aaa;">Columns: Name, HSN, Unit, Price</div>
+      </div>
+
+      <div class="items-list" id="items-list">
+        <!-- Rows injected by JS -->
+      </div>
+      <button class="add-item-btn" onclick="addItemRow()">+ Add Item</button>
+    </div>
+
+    <!-- GST & CHARGES -->
+    <div class="form-section">
+      <div class="section-title">GST &amp; Charges</div>
+      <div class="gst-row">
+        <div class="field">
+          <label>GST Rate (%)</label>
+          <select id="gst_rate">
+            <option value="0">0% (Exempt)</option>
+            <option value="5">5%</option>
+            <option value="12">12%</option>
+            <option value="18" selected>18% (CGST 9% + SGST 9%)</option>
+            <option value="28">28%</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="field" id="custom-gst-wrap" style="display:none">
+          <label>Custom %</label>
+          <input type="number" id="gst_custom" placeholder="e.g. 6" min="0" max="100" />
+        </div>
+        <div class="toggle-wrap">
+          <input type="checkbox" id="igst_toggle" />
+          <label for="igst_toggle" style="text-transform:none;font-size:12px;color:#333;margin:0;cursor:pointer;">Use IGST</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Forwarding / Transport Charge (₹)</label>
+        <input type="number" id="fwd_charge" placeholder="500" value="0" />
+      </div>
+    </div>
+
+    <!-- SELLER MY FIRM DETAILS -->
+    <div class="form-section">
+      <div class="section-title" style="justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span style="width:3px;height:12px;background:var(--accent);border-radius:2px;display:inline-block;"></span>
+          Your Firm Details (Bhagwati Enterprises)
+        </span>
+        <button onclick="clearSavedData()" style="
+          font-size:10px;font-family:sans-serif;background:none;border:1px solid var(--border);
+          border-radius:4px;padding:2px 8px;cursor:pointer;color:var(--muted);
+          letter-spacing:0;text-transform:none;
+        ">✕ Clear saved</button>
+      </div>
+      <div class="field">
+        <label>Full Address</label>
+        <textarea id="my_addr" placeholder="Ward No. 5, Near Roadways Workshop, Tanakpur, Uttarakhand – 262309"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>GSTIN</label>
+          <input type="text" id="my_gstin" placeholder="05BIXPJ5961R2Z3" />
+        </div>
+        <div class="field">
+          <label>PAN</label>
+          <input type="text" id="my_pan" placeholder="BIXPJ5961R" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Phone</label>
+          <input type="text" id="my_phone" placeholder="+91 98765 43210" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="my_email" placeholder="info@bhagwati.com" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Bank Name</label>
+          <input type="text" id="bank_name" placeholder="IndusInd Bank" />
+        </div>
+        <div class="field">
+          <label>Branch</label>
+          <input type="text" id="bank_branch" placeholder="Yamuna Vihar, Delhi" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Account No.</label>
+          <input type="text" id="bank_acc" placeholder="257766776677" />
+        </div>
+        <div class="field">
+          <label>IFSC</label>
+          <input type="text" id="bank_ifsc" placeholder="INDB0001940" />
+        </div>
+      </div>
+      <div class="field" style="margin-top:8px;">
+        <label>QR Code Image</label>
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-top:4px;">
+          <div id="qr-preview-wrap" style="
+            width:72px;height:72px;border:1px dashed var(--border);border-radius:4px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:9px;color:#aaa;text-align:center;flex-shrink:0;overflow:hidden;
+            background:#fafafa;">No<br>image</div>
+          <div style="flex:1;">
+            <input type="file" id="qr-upload" accept="image/*" onchange="loadQRImage(this)"
+              style="font-size:11px;padding:6px 8px;" />
+            <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5;">
+              Upload once — appears on every invoice automatically.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="generate-btn" onclick="generateInvoice()">⚡ Generate Invoice</button>
+
+  </aside>
+
+  <!-- ══ RIGHT: PREVIEW ══════════════════════════════════════════ -->
+  <main class="preview-panel">
+
+    <div class="preview-toolbar">
+      <span>📄 Invoice Preview</span>
+      <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      <div class="big">📋</div>
+      <div>Fill in the form and click<br><strong>Generate Invoice</strong> to preview the bill here.</div>
+    </div>
+
+    <!-- INVOICE PREVIEW (hidden until generated) -->
+    <div id="invoice-preview">
+      <div class="inv">
+
+        <!-- TOP LABEL -->
+        <div class="inv-top-label">TAX INVOICE</div>
+
+        <!-- HEADER -->
+        <div class="inv-header-box">
+          <div>
+            <div class="inv-firm-name">BHAGWATI ENTERPRISES</div>
+            <div class="inv-firm-sub" id="prev-my-addr">—</div>
+            <div class="inv-firm-sub"><strong>GSTIN: </strong><span id="prev-my-gstin">—</span> &nbsp;|&nbsp; <strong>PAN: </strong><span id="prev-my-pan">—</span></div>
+            <div class="inv-firm-sub"><strong>Phone: </strong><span id="prev-my-phone">—</span> &nbsp;|&nbsp; <strong>Email: </strong><span id="prev-my-email">—</span></div>
+          </div>
+          <div class="inv-logo-block">
+            <div class="inv-orig">Original Copy</div>
+            <div class="inv-logo-text">BHAGWATI</div>
+            <div class="inv-logo-sub">ENTERPRISES</div>
+          </div>
+        </div>
+
+        <!-- META ROW 1 -->
+        <div class="inv-meta-grid">
+          <div class="inv-meta-cell"><span class="k">Invoice No.</span><span class="v" id="prev-inv-no">—</span></div>
+          <div class="inv-meta-cell"><span class="k">Transport</span><span class="v" id="prev-transport">—</span></div>
+        </div>
+        <div class="inv-meta-grid">
+          <div class="inv-meta-cell"><span class="k">Date</span><span class="v" id="prev-inv-date">—</span></div>
+          <div class="inv-meta-cell"><span class="k">Station</span><span class="v" id="prev-station">—</span></div>
+        </div>
+        <div class="inv-meta-grid">
+          <div class="inv-meta-cell"><span class="k">Place of Supply</span><span class="v" id="prev-place">—</span></div>
+          <div class="inv-meta-cell"><span class="k">E-Way Bill No.</span><span class="v" id="prev-eway">—</span></div>
+        </div>
+
+        <!-- PARTY ROW -->
+        <div class="inv-party-row">
+          <div class="inv-party">
+            <div class="label">Billed To :</div>
+            <div class="firm" id="prev-buyer-name">—</div>
+            <div id="prev-buyer-addr">—</div>
+            <div><strong>GSTIN/UIN :</strong> <span id="prev-buyer-gstin">—</span></div>
+          </div>
+          <div class="inv-party">
+            <div class="label">Shipped To :</div>
+            <div class="firm" id="prev-buyer-name2">—</div>
+            <div id="prev-buyer-addr2">—</div>
+            <div><strong>GSTIN/UIN :</strong> <span id="prev-buyer-gstin2">—</span></div>
+          </div>
+        </div>
+
+        <!-- ITEMS TABLE -->
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th style="width:32px">S.No.</th>
+              <th>Description of Goods</th>
+              <th>HSN/SAC</th>
+              <th style="width:48px">QTY.</th>
+              <th style="width:48px">UNIT</th>
+              <th style="width:52px">PRICE</th>
+              <th style="width:80px">CGST+SGST<br>/ IGST AMT</th>
+              <th style="width:70px">AMOUNT (₹)</th>
+            </tr>
+          </thead>
+          <tbody id="prev-items-body">
+            <!-- rows injected -->
+          </tbody>
+        </table>
+
+        <!-- TOTALS + TERMS -->
+        <div class="inv-totals-row">
+          <div class="inv-terms">
+            <strong>Terms &amp; Conditions</strong><br>
+            E. &amp; O.E.<br>
+            1. Goods once sold will not be taken back.<br>
+            2. Interest @18% p.a. will be charged if payment is not made within stipulated time.<br>
+            3. Subject to local jurisdiction only.
+          </div>
+          <div class="inv-totals">
+            <div class="inv-total-line"><span class="lbl">Total</span><span id="prev-total">₹0</span></div>
+            <div class="inv-total-line"><span class="lbl" id="gst-label">CGST 9% + SGST 9%</span><span id="prev-gst">₹0</span></div>
+            <div class="inv-total-line"><span class="lbl">Forwarding Charge</span><span id="prev-fwd">₹0</span></div>
+            <div class="inv-total-line grand"><span class="lbl">Grand Total</span><span id="prev-grand">₹0</span></div>
+          </div>
+        </div>
+
+        <!-- FOOTER: BANK + QR + SIGN -->
+        <div class="inv-footer-row">
+          <div class="inv-bank">
+            <strong>Bank Details</strong>
+            <div><strong>Account No.:</strong> <span id="prev-bank-acc">—</span></div>
+            <div><strong>IFSC:</strong> <span id="prev-bank-ifsc">—</span></div>
+            <div><strong>Bank:</strong> <span id="prev-bank-name">—</span></div>
+            <div><strong>Branch:</strong> <span id="prev-bank-branch">—</span></div>
+          </div>
+          <div class="inv-qr">
+            <img id="prev-qr-img" src="" alt="QR Code"
+              style="width:100px;height:100px;object-fit:contain;display:none;" />
+            <div id="prev-qr-placeholder" class="inv-qr-placeholder">QR<br>Code</div>
+          </div>
+          <div class="inv-sign">
+            <div></div>
+            <div>
+              <div class="for">For BHAGWATI ENTERPRISES</div>
+              <br><br>
+              <div class="auth">Authorised Signatory</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DECLARATION -->
+        <div class="inv-decl">
+          <strong>Declaration:</strong> Products sold are for industrial usage only. Any other usage is not allowed &amp; purchaser shall be solely responsible.
+          &nbsp;|&nbsp; <strong>Payment:</strong> Bank Transfer
+        </div>
+
+      </div><!-- .inv -->
+    </div><!-- #invoice-preview -->
+
+  </main>
+</div>
+
+<script>
+// ─── PRODUCT CATALOG (from XLSX) ────────────────────────────────────
+let productCatalog = []; // [{name, hsn, unit, price}]
+let itemCounter = 0;
+
+// ─── XLSX PARSER (shared) ────────────────────────────────────────────
+function parseXLSXBuffer(buffer, sourceName) {
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+  productCatalog = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[0]) continue;
+    productCatalog.push({
+      name:  String(row[0] || '').trim(),
+      hsn:   String(row[1] || '').trim(),
+      unit:  String(row[2] || 'KGS').trim(),
+      price: parseFloat(row[3]) || 0
+    });
+  }
+
+  // Update status banner
+  const s = document.getElementById('auto-status');
+  document.getElementById('auto-icon').textContent = '✅';
+  document.getElementById('auto-msg').innerHTML =
+    `<strong>${productCatalog.length} products</strong> loaded from <strong>${sourceName}</strong>`;
+  s.style.background = '#f1f8e9';
+  s.style.borderColor = '#aed581';
+  s.style.color = '#33691e';
+
+  // Refresh selects & add a row
+  document.querySelectorAll('.item-product-select').forEach(sel => refreshSelect(sel));
+  if (document.querySelectorAll('.item-row').length === 0) addItemRow();
+}
+
+// ─── AUTO-LOAD via fetch (works with VS Code Live Server) ────────────
+async function autoLoadXLSX() {
+  try {
+    const res = await fetch('products.xlsx');
+    if (!res.ok) throw new Error('Not found');
+    const buffer = await res.arrayBuffer();
+    parseXLSXBuffer(new Uint8Array(buffer), 'products.xlsx');
+  } catch(e) {
+    // Auto-load failed — show fallback upload
+    document.getElementById('auto-icon').textContent = '⚠️';
+    document.getElementById('auto-msg').innerHTML =
+      `<strong>products.xlsx</strong> not found in this folder. Place it here, or upload manually below.`;
+    const s = document.getElementById('auto-status');
+    s.style.background = '#fff3e0';
+    s.style.borderColor = '#ffb74d';
+    s.style.color = '#e65100';
+    document.getElementById('upload-zone').style.display = 'block';
+  }
+}
+
+// ─── MANUAL FALLBACK LOADER ──────────────────────────────────────────
+function loadXLSXFromFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      parseXLSXBuffer(new Uint8Array(e.target.result), file.name);
+      const zone = document.getElementById('upload-zone');
+      zone.classList.add('loaded');
+    } catch(err) {
+      alert('Error reading XLSX. Make sure columns are: Name, HSN, Unit, Price');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function refreshSelect(sel) {
+  const current = sel.value;
+  // Keep manual option
+  sel.innerHTML = '<option value="">— Select Product —</option>' +
+    productCatalog.map((p, i) =>
+      `<option value="${i}" ${current == i ? 'selected':''}>
+        ${p.name} (₹${p.price}/${p.unit})
+      </option>`
+    ).join('') +
+    '<option value="manual">+ Manual Entry</option>';
+}
+
+// ─── ITEM ROWS ────────────────────────────────────────────────────────
+function addItemRow() {
+  const id = ++itemCounter;
+  const list = document.getElementById('items-list');
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.id = `item-${id}`;
+  div.innerHTML = `
+    <select class="item-product-select" onchange="onProductSelect(this, ${id})">
+      <option value="">— Select / Type —</option>
+      ${productCatalog.map((p, i) =>
+        `<option value="${i}">${p.name} (₹${p.price}/${p.unit})</option>`
+      ).join('')}
+      <option value="manual">+ Manual Entry</option>
+    </select>
+    <input type="number" class="item-qty" placeholder="Qty" min="0" oninput="recalc()" />
+    <input type="text"   class="item-unit" placeholder="KGS" style="font-size:11px" />
+    <input type="number" class="item-price" placeholder="Price" min="0" oninput="recalc()" />
+    <button class="btn-icon" onclick="removeItem(${id})">✕</button>
+  `;
+  list.appendChild(div);
+  recalc();
+}
+
+function onProductSelect(sel, id) {
+  const row = document.getElementById(`item-${id}`);
+  const qtyEl   = row.querySelector('.item-qty');
+  const unitEl  = row.querySelector('.item-unit');
+  const priceEl = row.querySelector('.item-price');
+
+  if (sel.value === 'manual' || sel.value === '') {
+    unitEl.value  = '';
+    priceEl.value = '';
+  } else {
+    const p = productCatalog[parseInt(sel.value)];
+    if (p) {
+      unitEl.value  = p.unit;
+      priceEl.value = p.price;
+    }
+  }
+  recalc();
+}
+
+function removeItem(id) {
+  const el = document.getElementById(`item-${id}`);
+  if (el) el.remove();
+  recalc();
+}
+
+// ─── GST SELECT ───────────────────────────────────────────────────────
+document.getElementById('gst_rate').addEventListener('change', function() {
+  document.getElementById('custom-gst-wrap').style.display =
+    this.value === 'custom' ? 'block' : 'none';
+  recalc();
+});
+document.getElementById('gst_custom').addEventListener('input', recalc);
+document.getElementById('igst_toggle').addEventListener('change', recalc);
+document.getElementById('fwd_charge').addEventListener('input', recalc);
+
+function getGSTRate() {
+  const sel = document.getElementById('gst_rate').value;
+  if (sel === 'custom') return parseFloat(document.getElementById('gst_custom').value) || 0;
+  return parseFloat(sel) || 0;
+}
+
+// ─── RECALC (live) ────────────────────────────────────────────────────
+function recalc() { /* can hook in future */ }
+
+// ─── FORMAT ───────────────────────────────────────────────────────────
+function fmt(n) {
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+function fmtN(n) {
+  return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+// ─── GENERATE INVOICE ─────────────────────────────────────────────────
+function generateInvoice() {
+  const g = id => document.getElementById(id).value.trim();
+
+  // Collect items
+  const itemRows = document.querySelectorAll('.item-row');
+  let items = [];
+  itemRows.forEach(row => {
+    const selEl   = row.querySelector('.item-product-select');
+    const qtyEl   = row.querySelector('.item-qty');
+    const unitEl  = row.querySelector('.item-unit');
+    const priceEl = row.querySelector('.item-price');
+
+    const qty   = parseFloat(qtyEl.value) || 0;
+    const price = parseFloat(priceEl.value) || 0;
+    if (qty <= 0 || price <= 0) return;
+
+    let name = '', hsn = '', unit = unitEl.value || 'KGS';
+    if (selEl.value !== '' && selEl.value !== 'manual') {
+      const p = productCatalog[parseInt(selEl.value)];
+      if (p) { name = p.name; hsn = p.hsn; unit = p.unit; }
+    }
+    if (!name) name = 'Product';
+    items.push({ name, hsn, unit, qty, price });
+  });
+
+  if (items.length === 0) {
+    alert('Please add at least one item with qty and price.');
+    return;
+  }
+
+  const gstRate   = getGSTRate();
+  const useIGST   = document.getElementById('igst_toggle').checked;
+  const fwdCharge = parseFloat(document.getElementById('fwd_charge').value) || 0;
+
+  let subtotal = 0;
+  items.forEach(it => { it.amount = it.qty * it.price; subtotal += it.amount; });
+  const gstAmt   = Math.round(subtotal * gstRate / 100);
+  const grandTotal = subtotal + gstAmt + fwdCharge;
+
+  // ── Populate preview ────────────────────────────────────────────
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  set('prev-my-addr',    g('my_addr') || 'New Town, Ward No. 5, Near Roadways Workshop, Tanakpur, Uttarakhand – 262309');
+  set('prev-my-gstin',   g('my_gstin') || '—');
+  set('prev-my-pan',     g('my_pan')   || '—');
+  set('prev-my-phone',   g('my_phone') || '—');
+  set('prev-my-email',   g('my_email') || '—');
+  set('prev-inv-no',     g('inv_no')   || '—');
+  set('prev-transport',  g('transport') || 'BY ROAD');
+  set('prev-station',    g('station')  || '—');
+  set('prev-place',      g('place_supply') || '—');
+  set('prev-eway',       g('eway')     || '—');
+
+  const rawDate = g('inv_date');
+  const dispDate = rawDate ? new Date(rawDate).toLocaleDateString('en-IN') : '—';
+  set('prev-inv-date', dispDate);
+
+  const buyerName = g('buyer_name') || '—';
+  const buyerAddr = g('buyer_addr') || '—';
+  const buyerGstin = g('buyer_gstin') || '—';
+  ['prev-buyer-name','prev-buyer-name2'].forEach(id => set(id, buyerName));
+  ['prev-buyer-addr','prev-buyer-addr2'].forEach(id => set(id, buyerAddr));
+  ['prev-buyer-gstin','prev-buyer-gstin2'].forEach(id => set(id, buyerGstin));
+
+  // Items table
+  const tbody = document.getElementById('prev-items-body');
+  tbody.innerHTML = '';
+  items.forEach((it, idx) => {
+    const gstPerUnit = it.price * gstRate / 100;
+    const gstItemAmt = Math.round(it.qty * gstPerUnit);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="cen">${idx + 1}</td>
+      <td>
+        <div class="desc-main">${it.name}</div>
+        <div class="desc-sub">(${it.qty} ${it.unit})</div>
+      </td>
+      <td class="cen">${it.hsn || '—'}</td>
+      <td class="num">${fmtN(it.qty)}</td>
+      <td class="cen">${it.unit}</td>
+      <td class="num">${fmtN(it.price)}</td>
+      <td class="num">${fmtN(gstItemAmt)}</td>
+      <td class="num">${fmtN(it.amount)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Add empty padding rows
+  for (let i = items.length; i < 5; i++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>`;
+    tbody.appendChild(tr);
+  }
+
+  // Totals
+  const gstLabel = useIGST ? `IGST ${gstRate}%` : `CGST ${gstRate/2}% + SGST ${gstRate/2}%`;
+  document.getElementById('gst-label').textContent = gstLabel;
+  set('prev-total', fmt(subtotal));
+  set('prev-gst',   fmt(gstAmt));
+  set('prev-fwd',   fmt(fwdCharge));
+  set('prev-grand', fmt(grandTotal));
+
+  // QR Code
+  const qrImg = document.getElementById('prev-qr-img');
+  const qrPlaceholder = document.getElementById('prev-qr-placeholder');
+  if (qrImageDataURL) {
+    qrImg.src = qrImageDataURL;
+    qrImg.style.display = 'block';
+    qrPlaceholder.style.display = 'none';
+  } else {
+    qrImg.style.display = 'none';
+    qrPlaceholder.style.display = 'flex';
+  }
+
+  // Bank
+  set('prev-bank-acc',    g('bank_acc')    || '—');
+  set('prev-bank-ifsc',   g('bank_ifsc')   || '—');
+  set('prev-bank-name',   g('bank_name')   || '—');
+  set('prev-bank-branch', g('bank_branch') || '—');
+
+  // Show
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('invoice-preview').style.display = 'block';
+  document.getElementById('invoice-preview').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ─── QR IMAGE LOADER ─────────────────────────────────────────────────
+let qrImageDataURL = null;
+
+function loadQRImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    qrImageDataURL = e.target.result;
+    // Show thumbnail using DOM (avoids Edge innerHTML blocking)
+    const wrap = document.getElementById('qr-preview-wrap');
+    wrap.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = qrImageDataURL;
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+    wrap.appendChild(img);
+  };
+  reader.onerror = function() {
+    alert('Could not read the image file. Please try again.');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─── LOCALSTORAGE: SAVE & RESTORE FORM ──────────────────────────────
+const SAVED_FIELDS = [
+  'my_addr','my_gstin','my_pan','my_phone','my_email',
+  'bank_name','bank_branch','bank_acc','bank_ifsc',
+  'place_supply','transport','station',
+  'gst_rate','gst_custom','fwd_charge'
+];
+
+function saveFormData() {
+  SAVED_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) localStorage.setItem('be_' + id, el.value);
+  });
+  // Show saved flash
+  const btn = document.querySelector('.generate-btn');
+  const orig = btn.textContent;
+  btn.textContent = '✓ Saved!';
+  btn.style.background = '#2e7d32';
+  setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1200);
+}
+
+function restoreFormData() {
+  SAVED_FIELDS.forEach(id => {
+    const val = localStorage.getItem('be_' + id);
+    const el = document.getElementById(id);
+    if (el && val !== null) el.value = val;
+  });
+  // Trigger custom GST visibility
+  const gstSel = document.getElementById('gst_rate');
+  if (gstSel && gstSel.value === 'custom') {
+    document.getElementById('custom-gst-wrap').style.display = 'block';
+  }
+}
+
+function clearSavedData() {
+  if (!confirm('Clear all saved firm & bank details?')) return;
+  SAVED_FIELDS.forEach(id => localStorage.removeItem('be_' + id));
+  SAVED_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+// Auto-save on any input change
+document.addEventListener('input', function(e) {
+  if (SAVED_FIELDS.includes(e.target.id)) {
+    localStorage.setItem('be_' + e.target.id, e.target.value);
+  }
+});
+document.addEventListener('change', function(e) {
+  if (SAVED_FIELDS.includes(e.target.id)) {
+    localStorage.setItem('be_' + e.target.id, e.target.value);
+  }
+});
+
+// ─── AUTO-LOAD QR IMAGE ───────────────────────────────────────────────
+async function autoLoadQR() {
+  try {
+    const res = await fetch('qr.png');
+    if (!res.ok) throw new Error('Not found');
+    const blob = await res.blob();
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      qrImageDataURL = e.target.result;
+      const wrap = document.getElementById('qr-preview-wrap');
+      wrap.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = qrImageDataURL;
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+      wrap.appendChild(img);
+    };
+    reader.readAsDataURL(blob);
+  } catch(e) {
+    // qr.png not found — user can upload manually, no error shown
+  }
+}
+
+// ─── SET DEFAULT DATE ─────────────────────────────────────────────────
+document.getElementById('inv_date').valueAsDate = new Date();
+
+// ─── INIT: restore saved data, auto-load XLSX + QR ───────────────────
+restoreFormData();
+autoLoadQR();
+autoLoadXLSX().then(() => {
+  if (document.querySelectorAll('.item-row').length === 0) addItemRow();
+});
+</script>
+
+</body>
+</html>
