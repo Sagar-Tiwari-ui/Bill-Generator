@@ -733,6 +733,26 @@
       </div>
     </div>
 
+    <!-- SIGNATURE UPLOAD -->
+    <div class="form-section">
+      <div class="section-title">Signature</div>
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div id="sign-preview-wrap" style="
+          width:100px;height:50px;border:1px dashed var(--border);border-radius:4px;
+          display:flex;align-items:center;justify-content:center;
+          font-size:9px;color:#aaa;text-align:center;flex-shrink:0;overflow:hidden;
+          background:#fafafa;">No<br>signature</div>
+        <div style="flex:1;">
+          <input type="file" id="sign-upload" accept="image/png,image/jpeg,image/jpg"
+            onchange="loadSignatureImage(this)"
+            style="font-size:11px;padding:6px 8px;" />
+          <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5;">
+            Place <strong>signature.png</strong> in the same folder to auto-load, or upload manually.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <button class="generate-btn" onclick="generateInvoice()">⚡ Generate Invoice</button>
 
   </aside>
@@ -855,8 +875,11 @@
           <div class="inv-sign">
             <div></div>
             <div>
+              <div id="prev-sign-wrap" style="height:50px;display:flex;align-items:flex-end;justify-content:flex-end;margin-bottom:2px;">
+                <img id="prev-sign-img" src="" alt="Signature"
+                  style="max-height:50px;max-width:120px;object-fit:contain;display:none;" />
+              </div>
               <div class="for">For BHAGWATI ENTERPRISES</div>
-              <br><br>
               <div class="auth">Authorised Signatory</div>
             </div>
           </div>
@@ -1142,6 +1165,15 @@ function generateInvoice() {
   set('prev-fwd',   fmt(fwdCharge));
   set('prev-grand', fmt(grandTotal));
 
+  // Signature
+  const signImg = document.getElementById('prev-sign-img');
+  if (signatureDataURL) {
+    signImg.src = signatureDataURL;
+    signImg.style.display = 'block';
+  } else {
+    signImg.style.display = 'none';
+  }
+
   // QR Code
   const qrImg = document.getElementById('prev-qr-img');
   const qrPlaceholder = document.getElementById('prev-qr-placeholder');
@@ -1244,6 +1276,46 @@ document.addEventListener('change', function(e) {
   }
 });
 
+// ─── SIGNATURE LOADER ────────────────────────────────────────────────
+let signatureDataURL = null;
+
+function applySignatureToPreview(dataURL, previewId) {
+  const wrap = document.getElementById(previewId);
+  wrap.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = dataURL;
+  img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+  wrap.appendChild(img);
+}
+
+function loadSignatureImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    signatureDataURL = e.target.result;
+    applySignatureToPreview(signatureDataURL, 'sign-preview-wrap');
+  };
+  reader.onerror = function() { alert('Could not read signature image.'); };
+  reader.readAsDataURL(file);
+}
+
+async function autoLoadSignature() {
+  try {
+    const res = await fetch('signature.png');
+    if (!res.ok) throw new Error('Not found');
+    const blob = await res.blob();
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      signatureDataURL = e.target.result;
+      applySignatureToPreview(signatureDataURL, 'sign-preview-wrap');
+    };
+    reader.readAsDataURL(blob);
+  } catch(e) {
+    // signature.png not found — user can upload manually
+  }
+}
+
 // ─── AUTO-LOAD QR IMAGE ───────────────────────────────────────────────
 async function autoLoadQR() {
   try {
@@ -1272,6 +1344,7 @@ document.getElementById('inv_date').valueAsDate = new Date();
 // ─── INIT: restore saved data, auto-load XLSX + QR ───────────────────
 restoreFormData();
 autoLoadQR();
+autoLoadSignature();
 autoLoadXLSX().then(() => {
   if (document.querySelectorAll('.item-row').length === 0) addItemRow();
 });
