@@ -5,22 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bhagwati Enterprises — Bill Generator</title>
 
-  <!-- SheetJS for XLSX parsing -->
+  <!-- ═══════════════════════════════════════════════════════════════
+       EXTERNAL LIBRARY: SheetJS for parsing .xlsx product catalog
+       CDN: https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
+  ═══════════════════════════════════════════════════════════════════ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
-    /* ─── RESET & BASE ────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: CSS RESET & ROOT VARIABLES
+       – Box model normalisation, font stack, and design tokens
+    ═══════════════════════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --ink:       #1a1a2e;
-      --accent:    #c8102e;
-      --gold:      #b8860b;
-      --surface:   #fdf8f0;
-      --panel:     #ffffff;
-      --border:    #c9b99a;
-      --muted:     #7a6a55;
-      --input-bg:  #fffdf8;
+      --ink:       #1a1a2e;   /* primary dark text / header bg  */
+      --accent:    #c8102e;   /* Bhagwati brand red             */
+      --gold:      #b8860b;   /* decorative gold (unused here)  */
+      --surface:   #fdf8f0;   /* page background                */
+      --panel:     #ffffff;   /* form panel background          */
+      --border:    #c9b99a;   /* default border colour          */
+      --muted:     #7a6a55;   /* secondary / label text         */
+      --input-bg:  #fffdf8;   /* input field background         */
       --radius:    6px;
       --shadow:    0 2px 12px rgba(0,0,0,0.08);
     }
@@ -32,7 +38,10 @@
       min-height: 100vh;
     }
 
-    /* ─── APP LAYOUT ──────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: APP HEADER
+       – Top navigation bar with firm name and system label
+    ═══════════════════════════════════════════════════════════════ */
     .app-header {
       background: var(--ink);
       color: #fff;
@@ -60,6 +69,10 @@
       font-family: sans-serif;
     }
 
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: MAIN WORKSPACE LAYOUT
+       – Two-column grid: form panel (left) + preview panel (right)
+    ═══════════════════════════════════════════════════════════════ */
     .workspace {
       display: grid;
       grid-template-columns: 420px 1fr;
@@ -67,7 +80,10 @@
       min-height: calc(100vh - 63px);
     }
 
-    /* ─── LEFT PANEL (FORM) ───────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: LEFT PANEL — FORM STYLES
+       – Sticky scrollable form container with sections and fields
+    ═══════════════════════════════════════════════════════════════ */
     .form-panel {
       background: var(--panel);
       border-right: 1px solid var(--border);
@@ -103,17 +119,14 @@
 
     .form-section { margin-bottom: 24px; }
 
+    /* ── Field grid layouts ── */
     .field-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
-    .field-row.trio {
-      grid-template-columns: 1fr 1fr 1fr;
-    }
-    .field-row.solo {
-      grid-template-columns: 1fr;
-    }
+    .field-row.trio { grid-template-columns: 1fr 1fr 1fr; }
+    .field-row.solo { grid-template-columns: 1fr; }
 
     .field {
       display: flex;
@@ -148,7 +161,10 @@
     }
     textarea { resize: vertical; min-height: 64px; }
 
-    /* ─── XLSX UPLOAD ─────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: XLSX UPLOAD ZONE
+       – Drag-and-drop area for manually uploading product catalog
+    ═══════════════════════════════════════════════════════════════ */
     .upload-zone {
       border: 2px dashed var(--border);
       border-radius: var(--radius);
@@ -173,7 +189,10 @@
     .upload-zone .icon { font-size: 22px; display: block; margin-bottom: 4px; }
     .upload-zone.loaded { border-color: #2e7d32; background: #f1f8f1; color: #2e7d32; }
 
-    /* ─── ITEMS TABLE ─────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: ITEMS LIST — PRODUCT ROWS
+       – Dynamic rows for product selection, qty, unit, price
+    ═══════════════════════════════════════════════════════════════ */
     .items-list { margin-top: 10px; }
 
     .item-row {
@@ -183,10 +202,10 @@
       align-items: center;
       margin-bottom: 6px;
     }
-
     .item-row select { font-size: 12px; padding: 6px 8px; }
     .item-row input  { font-size: 12px; padding: 6px 8px; }
 
+    /* ── Remove-row icon button ── */
     .btn-icon {
       background: none;
       border: 1px solid var(--border);
@@ -204,6 +223,7 @@
     }
     .btn-icon:hover { background: #fff0f0; }
 
+    /* ── Add item dashed button ── */
     .add-item-btn {
       background: none;
       border: 1px dashed var(--border);
@@ -219,7 +239,10 @@
     }
     .add-item-btn:hover { border-color: var(--accent); color: var(--accent); background: #fff5f5; }
 
-    /* ─── GST TOGGLE ──────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: GST TOGGLE & CHARGES
+       – GST rate selector, IGST toggle, forwarding charge input
+    ═══════════════════════════════════════════════════════════════ */
     .gst-row {
       display: flex;
       gap: 10px;
@@ -247,7 +270,10 @@
       cursor: pointer;
     }
 
-    /* ─── GENERATE BUTTON ─────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: GENERATE BUTTON
+       – Primary CTA at the bottom of the form panel
+    ═══════════════════════════════════════════════════════════════ */
     .generate-btn {
       width: 100%;
       background: var(--accent);
@@ -265,7 +291,10 @@
     .generate-btn:hover { background: #a00d25; }
     .generate-btn:active { transform: scale(0.98); }
 
-    /* ─── RIGHT PANEL (PREVIEW) ───────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: RIGHT PANEL — PREVIEW STYLES
+       – Container for the rendered invoice preview
+    ═══════════════════════════════════════════════════════════════ */
     .preview-panel {
       background: #e8e4df;
       padding: 32px;
@@ -304,6 +333,7 @@
     }
     .print-btn:hover { background: #333; }
 
+    /* ── Empty state placeholder ── */
     .empty-state {
       flex: 1;
       display: flex;
@@ -318,7 +348,10 @@
     }
     .empty-state .big { font-size: 48px; }
 
-    /* ─── INVOICE PREVIEW ─────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: INVOICE PREVIEW CONTAINER
+       – White card shown after generating the invoice
+    ═══════════════════════════════════════════════════════════════ */
     #invoice-preview {
       width: 760px;
       background: #fff;
@@ -327,7 +360,10 @@
       display: none;
     }
 
-    /* ─── PRINT STYLES ────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: PRINT MEDIA QUERY
+       – Hides UI chrome; shows only the invoice for print/PDF
+    ═══════════════════════════════════════════════════════════════ */
     @media print {
       body { background: #fff; }
       .app-header, .form-panel, .preview-toolbar, .print-btn { display: none !important; }
@@ -342,7 +378,18 @@
       @page { size: A4; margin: 10mm; }
     }
 
-    /* ─── INVOICE INTERNAL STYLES ─────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION: INVOICE INTERNAL STYLES (.inv-*)
+       – All typographic and layout rules for the rendered invoice
+       – Sub-sections below are grouped by invoice region:
+         1. Top label & header box
+         2. Meta grid (invoice no, date, transport, etc.)
+         3. Party row (billed to / shipped to)
+         4. Items table
+         5. Totals + terms
+         6. Footer (bank details, QR, signature)
+         7. Declaration strip
+    ═══════════════════════════════════════════════════════════════ */
     .inv {
       font-family: 'Arial', sans-serif;
       font-size: 12px;
@@ -350,6 +397,7 @@
       padding: 20px 24px;
     }
 
+    /* ── 1. Top label ── */
     .inv-top-label {
       text-align: center;
       font-weight: bold;
@@ -361,6 +409,7 @@
       background: #f5f5f5;
     }
 
+    /* ── 2. Header box: firm name + logo block ── */
     .inv-header-box {
       border: 1px solid #333;
       display: flex;
@@ -368,7 +417,6 @@
       align-items: center;
       padding: 10px 14px;
     }
-
     .inv-firm-name {
       font-size: 22px;
       font-weight: 900;
@@ -377,7 +425,6 @@
     }
     .inv-firm-sub { font-size: 11px; color: #333; margin-top: 2px; line-height: 1.6; }
     .inv-firm-sub strong { color: #111; }
-
     .inv-logo-block {
       text-align: right;
       border-left: 2px solid #ddd;
@@ -392,7 +439,7 @@
     .inv-logo-sub { font-size: 11px; color: #666; }
     .inv-orig { font-size: 9px; color: #999; text-align: right; }
 
-    /* Meta row */
+    /* ── 3. Meta grid rows ── */
     .inv-meta-grid {
       border: 1px solid #333;
       border-top: none;
@@ -407,19 +454,10 @@
       gap: 4px;
     }
     .inv-meta-cell:last-child { border-right: none; }
-    .inv-meta-cell .k { color: #555; min-width: 100px; }
+    .inv-meta-cell .k { color: #555; min-width: 110px; }
     .inv-meta-cell .v { font-weight: bold; }
 
-    .inv-meta-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      border: 1px solid #333;
-      border-top: none;
-    }
-    .inv-meta-row .inv-meta-cell { border-right: 1px solid #ccc; }
-    .inv-meta-row .inv-meta-cell:last-child { border-right: none; }
-
-    /* Billed to / shipped to */
+    /* ── 4. Party row (billed/shipped to) ── */
     .inv-party-row {
       border: 1px solid #333;
       border-top: none;
@@ -432,10 +470,16 @@
       line-height: 1.7;
     }
     .inv-party + .inv-party { border-left: 1px solid #ccc; }
-    .inv-party .label { font-weight: bold; font-size: 11px; border-bottom: 1px solid #ddd; margin-bottom: 4px; padding-bottom: 2px; }
+    .inv-party .label {
+      font-weight: bold;
+      font-size: 11px;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 4px;
+      padding-bottom: 2px;
+    }
     .inv-party .firm { font-size: 13px; font-weight: bold; }
 
-    /* Items table */
+    /* ── 5. Items table ── */
     .inv-table {
       width: 100%;
       border-collapse: collapse;
@@ -462,7 +506,7 @@
     .inv-table .desc-main { font-weight: bold; font-size: 12px; }
     .inv-table .desc-sub { font-size: 10px; color: #555; margin-top: 2px; }
 
-    /* Totals */
+    /* ── 6. Totals + terms row ── */
     .inv-totals-row {
       border: 1px solid #333;
       border-top: none;
@@ -477,10 +521,7 @@
       border-right: 1px solid #ccc;
     }
     .inv-terms strong { color: #111; font-size: 11px; }
-
-    .inv-totals {
-      padding: 6px 10px;
-    }
+    .inv-totals { padding: 6px 10px; }
     .inv-total-line {
       display: flex;
       justify-content: space-between;
@@ -498,7 +539,7 @@
     }
     .inv-total-line .lbl { color: #555; }
 
-    /* Bank + declaration */
+    /* ── 7. Footer: bank + QR + signature ── */
     .inv-footer-row {
       border: 1px solid #333;
       border-top: none;
@@ -509,11 +550,23 @@
     .inv-bank { padding: 8px 10px; line-height: 1.8; border-right: 1px solid #ccc; }
     .inv-bank strong { font-size: 11px; display: block; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
     .inv-qr { border-right: 1px solid #ccc; display: flex; align-items: center; justify-content: center; padding: 8px; }
-    .inv-qr-placeholder { width: 100px; height: 100px; border: 1px dashed #aaa; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #aaa; text-align: center; }
-    .inv-sign { padding: 8px 10px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; }
+    .inv-qr-placeholder {
+      width: 100px; height: 100px;
+      border: 1px dashed #aaa;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: #aaa; text-align: center;
+    }
+    .inv-sign {
+      padding: 8px 10px;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
     .inv-sign .for { font-size: 11px; font-weight: bold; }
     .inv-sign .auth { font-size: 9px; color: #777; }
 
+    /* ── 8. Declaration strip ── */
     .inv-decl {
       border: 1px solid #333;
       border-top: none;
@@ -528,6 +581,10 @@
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION: APP HEADER BAR
+     – Brand mark, app title, and system label
+═══════════════════════════════════════════════════════════════════════ -->
 <header class="app-header">
   <div class="logo-mark">BI</div>
   <h1>Bhagwati Enterprises &mdash; Bill Generator</h1>
@@ -536,12 +593,21 @@
 
 <div class="workspace">
 
-  <!-- ══ LEFT: FORM ══════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION: LEFT PANEL — FORM
+       Contains all input sections: invoice details, buyer, products,
+       GST, motor vehicle, firm/bank details, signature
+  ═══════════════════════════════════════════════════════════════════ -->
   <aside class="form-panel">
 
-    <!-- INVOICE META -->
+    <!-- ───────────────────────────────────────────────────────────
+         FORM SECTION: Invoice Details
+         Fields: Invoice No., Date, Place of Supply, Transport,
+                 Station, Motor Vehicle No., E-Way Bill No.
+    ─────────────────────────────────────────────────────────────── -->
     <div class="form-section">
       <div class="section-title">Invoice Details</div>
+
       <div class="field-row">
         <div class="field">
           <label>Invoice No.</label>
@@ -552,6 +618,7 @@
           <input type="date" id="inv_date" />
         </div>
       </div>
+
       <div class="field-row">
         <div class="field">
           <label>Place of Supply</label>
@@ -562,11 +629,20 @@
           <input type="text" id="transport" placeholder="BY ROAD" />
         </div>
       </div>
+
       <div class="field-row">
         <div class="field">
           <label>Station</label>
           <input type="text" id="station" placeholder="TANAKPUR (UK)" />
         </div>
+        <!-- ── NEW: Motor Vehicle Number field ── -->
+        <div class="field">
+          <label>Motor Vehicle No.</label>
+          <input type="text" id="vehicle_no" placeholder="e.g. UK07 GA 0001" />
+        </div>
+      </div>
+
+      <div class="field-row solo">
         <div class="field">
           <label>E-Way Bill No.</label>
           <input type="text" id="eway" placeholder="(optional)" />
@@ -574,19 +650,23 @@
       </div>
     </div>
 
-    <!-- BUYER DETAILS -->
+    <!-- ───────────────────────────────────────────────────────────
+         FORM SECTION: Buyer / Billed & Shipped To
+         Fields: Company Name, Address, GSTIN, State
+    ─────────────────────────────────────────────────────────────── -->
     <div class="form-section">
       <div class="section-title">Billed / Shipped To</div>
-      <div class="field field-row solo">
-        <div class="field">
-          <label>Company / Firm Name</label>
-          <input type="text" id="buyer_name" placeholder="Client Firm Name" />
-        </div>
+
+      <div class="field">
+        <label>Company / Firm Name</label>
+        <input type="text" id="buyer_name" placeholder="Client Firm Name" />
       </div>
+
       <div class="field">
         <label>Address</label>
         <textarea id="buyer_addr" placeholder="Full address with PIN"></textarea>
       </div>
+
       <div class="field-row">
         <div class="field">
           <label>GSTIN/UIN</label>
@@ -599,11 +679,16 @@
       </div>
     </div>
 
-    <!-- PRODUCTS FROM XLSX -->
+    <!-- ───────────────────────────────────────────────────────────
+         FORM SECTION: Products (Load from XLSX)
+         – Auto-loads products.xlsx from same directory
+         – Falls back to manual upload if file not found
+         – Dynamic item rows with product select, qty, unit, price
+    ─────────────────────────────────────────────────────────────── -->
     <div class="form-section">
       <div class="section-title">Products (Load from XLSX)</div>
 
-      <!-- AUTO-LOAD STATUS -->
+      <!-- Auto-load status banner -->
       <div id="auto-status" style="
         border-radius:6px;padding:10px 12px;font-family:sans-serif;
         font-size:12px;display:flex;align-items:center;gap:10px;
@@ -613,7 +698,7 @@
         <span id="auto-msg">Looking for <strong>products.xlsx</strong> in the same folder…</span>
       </div>
 
-      <!-- FALLBACK: manual upload (shown only if auto-load fails) -->
+      <!-- Fallback manual upload (shown only if auto-load fails) -->
       <div class="upload-zone" id="upload-zone" style="margin-top:8px;display:none;">
         <input type="file" id="xlsx-file" accept=".xlsx,.xls" onchange="loadXLSXFromFile(this)" />
         <span class="icon">📄</span>
@@ -621,15 +706,19 @@
         <div style="font-size:11px;margin-top:4px;color:#aaa;">Columns: Name, HSN, Unit, Price</div>
       </div>
 
-      <div class="items-list" id="items-list">
-        <!-- Rows injected by JS -->
-      </div>
+      <!-- Dynamic product rows injected by JS -->
+      <div class="items-list" id="items-list"></div>
       <button class="add-item-btn" onclick="addItemRow()">+ Add Item</button>
     </div>
 
-    <!-- GST & CHARGES -->
+    <!-- ───────────────────────────────────────────────────────────
+         FORM SECTION: GST & Charges
+         Fields: GST Rate selector, Custom % (conditional),
+                 IGST toggle, Forwarding/Transport Charge
+    ─────────────────────────────────────────────────────────────── -->
     <div class="form-section">
       <div class="section-title">GST &amp; Charges</div>
+
       <div class="gst-row">
         <div class="field">
           <label>GST Rate (%)</label>
@@ -642,6 +731,7 @@
             <option value="custom">Custom</option>
           </select>
         </div>
+        <!-- Shown only when "Custom" is selected -->
         <div class="field" id="custom-gst-wrap" style="display:none">
           <label>Custom %</label>
           <input type="number" id="gst_custom" placeholder="e.g. 6" min="0" max="100" />
@@ -651,13 +741,20 @@
           <label for="igst_toggle" style="text-transform:none;font-size:12px;color:#333;margin:0;cursor:pointer;">Use IGST</label>
         </div>
       </div>
+
       <div class="field">
         <label>Forwarding / Transport Charge (₹)</label>
         <input type="number" id="fwd_charge" placeholder="500" value="0" />
       </div>
     </div>
 
-    <!-- SELLER MY FIRM DETAILS -->
+    <!-- ───────────────────────────────────────────────────────────
+         FORM SECTION: Your Firm Details (Bhagwati Enterprises)
+         Pre-filled defaults: Address, GSTIN, PAN, Phone, Email
+         Bank: SBI account 45173313830, IFSC SBIN0002585
+         Also includes: QR code image upload
+         Note: Values are auto-saved to localStorage on change
+    ─────────────────────────────────────────────────────────────── -->
     <div class="form-section">
       <div class="section-title" style="justify-content:space-between;">
         <span style="display:flex;align-items:center;gap:8px;">
@@ -670,10 +767,12 @@
           letter-spacing:0;text-transform:none;
         ">✕ Clear saved</button>
       </div>
+
       <div class="field">
         <label>Full Address</label>
         <textarea id="my_addr" placeholder="Ward No. 5, Near Roadways Workshop, Tanakpur, Uttarakhand – 262309"></textarea>
       </div>
+
       <div class="field-row">
         <div class="field">
           <label>GSTIN</label>
@@ -684,6 +783,7 @@
           <input type="text" id="my_pan" placeholder="BIXPJ5961R" />
         </div>
       </div>
+
       <div class="field-row">
         <div class="field">
           <label>Phone</label>
@@ -694,26 +794,34 @@
           <input type="text" id="my_email" placeholder="info@bhagwati.com" />
         </div>
       </div>
+
+      <!-- ── Bank Details — pre-filled with SBI account ── -->
       <div class="field-row">
         <div class="field">
           <label>Bank Name</label>
-          <input type="text" id="bank_name" placeholder="IndusInd Bank" />
+          <!-- PRE-FILLED: State Bank of India -->
+          <input type="text" id="bank_name" placeholder="State Bank of India" />
         </div>
         <div class="field">
           <label>Branch</label>
-          <input type="text" id="bank_branch" placeholder="Yamuna Vihar, Delhi" />
+          <input type="text" id="bank_branch" placeholder="Branch Name" />
         </div>
       </div>
+
       <div class="field-row">
         <div class="field">
           <label>Account No.</label>
-          <input type="text" id="bank_acc" placeholder="257766776677" />
+          <!-- PRE-FILLED: 45173313830 -->
+          <input type="text" id="bank_acc" placeholder="45173313830" />
         </div>
         <div class="field">
           <label>IFSC</label>
-          <input type="text" id="bank_ifsc" placeholder="INDB0001940" />
+          <!-- PRE-FILLED: SBIN0002585 -->
+          <input type="text" id="bank_ifsc" placeholder="SBIN0002585" />
         </div>
       </div>
+
+      <!-- QR Code image upload -->
       <div class="field" style="margin-top:8px;">
         <label>QR Code Image</label>
         <div style="display:flex;gap:10px;align-items:flex-start;margin-top:4px;">
@@ -733,7 +841,10 @@
       </div>
     </div>
 
-    <!-- SIGNATURE UPLOAD -->
+    <!-- ───────────────────────────────────────────────────────────
+         FORM SECTION: Signature Upload
+         – Accepts PNG/JPG; auto-loads signature.png from same dir
+    ─────────────────────────────────────────────────────────────── -->
     <div class="form-section">
       <div class="section-title">Signature</div>
       <div style="display:flex;gap:10px;align-items:flex-start;">
@@ -753,37 +864,63 @@
       </div>
     </div>
 
+    <!-- ── Generate Invoice CTA button ── -->
     <button class="generate-btn" onclick="generateInvoice()">⚡ Generate Invoice</button>
 
   </aside>
 
-  <!-- ══ RIGHT: PREVIEW ══════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION: RIGHT PANEL — INVOICE PREVIEW
+       Contains: toolbar (print button) + rendered invoice card
+  ═══════════════════════════════════════════════════════════════════ -->
   <main class="preview-panel">
 
+    <!-- Preview toolbar -->
     <div class="preview-toolbar">
       <span>📄 Invoice Preview</span>
       <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
     </div>
 
+    <!-- Empty state (shown before first generation) -->
     <div class="empty-state" id="empty-state">
       <div class="big">📋</div>
       <div>Fill in the form and click<br><strong>Generate Invoice</strong> to preview the bill here.</div>
     </div>
 
-    <!-- INVOICE PREVIEW (hidden until generated) -->
+    <!-- ─────────────────────────────────────────────────────────────
+         INVOICE PREVIEW CARD
+         Hidden until generateInvoice() is called.
+         Internal structure:
+           1. .inv-top-label        — "TAX INVOICE" banner
+           2. .inv-header-box       — Firm name & logo
+           3. .inv-meta-grid ×4     — Invoice meta rows
+           4. .inv-party-row        — Billed/Shipped to
+           5. .inv-table            — Items table
+           6. .inv-totals-row       — Terms & financial totals
+           7. .inv-footer-row       — Bank + QR + Signature
+           8. .inv-decl             — Declaration strip
+    ───────────────────────────────────────────────────────────────── -->
     <div id="invoice-preview">
       <div class="inv">
 
-        <!-- TOP LABEL -->
+        <!-- 1. Top banner -->
         <div class="inv-top-label">TAX INVOICE</div>
 
-        <!-- HEADER -->
+        <!-- 2. Header: firm name + decorative logo block -->
         <div class="inv-header-box">
           <div>
             <div class="inv-firm-name">BHAGWATI ENTERPRISES</div>
             <div class="inv-firm-sub" id="prev-my-addr">—</div>
-            <div class="inv-firm-sub"><strong>GSTIN: </strong><span id="prev-my-gstin">—</span> &nbsp;|&nbsp; <strong>PAN: </strong><span id="prev-my-pan">—</span></div>
-            <div class="inv-firm-sub"><strong>Phone: </strong><span id="prev-my-phone">—</span> &nbsp;|&nbsp; <strong>Email: </strong><span id="prev-my-email">—</span></div>
+            <div class="inv-firm-sub">
+              <strong>GSTIN: </strong><span id="prev-my-gstin">—</span>
+              &nbsp;|&nbsp;
+              <strong>PAN: </strong><span id="prev-my-pan">—</span>
+            </div>
+            <div class="inv-firm-sub">
+              <strong>Phone: </strong><span id="prev-my-phone">—</span>
+              &nbsp;|&nbsp;
+              <strong>Email: </strong><span id="prev-my-email">—</span>
+            </div>
           </div>
           <div class="inv-logo-block">
             <div class="inv-orig">Original Copy</div>
@@ -792,7 +929,7 @@
           </div>
         </div>
 
-        <!-- META ROW 1 -->
+        <!-- 3. Meta rows (invoice no, transport, date, station, place, eway, vehicle) -->
         <div class="inv-meta-grid">
           <div class="inv-meta-cell"><span class="k">Invoice No.</span><span class="v" id="prev-inv-no">—</span></div>
           <div class="inv-meta-cell"><span class="k">Transport</span><span class="v" id="prev-transport">—</span></div>
@@ -805,8 +942,13 @@
           <div class="inv-meta-cell"><span class="k">Place of Supply</span><span class="v" id="prev-place">—</span></div>
           <div class="inv-meta-cell"><span class="k">E-Way Bill No.</span><span class="v" id="prev-eway">—</span></div>
         </div>
+        <!-- NEW: Motor Vehicle Number row on the invoice -->
+        <div class="inv-meta-grid">
+          <div class="inv-meta-cell"><span class="k">Motor Vehicle No.</span><span class="v" id="prev-vehicle-no">—</span></div>
+          <div class="inv-meta-cell"><span class="k">&nbsp;</span><span class="v">&nbsp;</span></div>
+        </div>
 
-        <!-- PARTY ROW -->
+        <!-- 4. Party row: Billed To / Shipped To -->
         <div class="inv-party-row">
           <div class="inv-party">
             <div class="label">Billed To :</div>
@@ -822,7 +964,7 @@
           </div>
         </div>
 
-        <!-- ITEMS TABLE -->
+        <!-- 5. Items table -->
         <table class="inv-table">
           <thead>
             <tr>
@@ -836,12 +978,11 @@
               <th style="width:70px">AMOUNT (₹)</th>
             </tr>
           </thead>
-          <tbody id="prev-items-body">
-            <!-- rows injected -->
-          </tbody>
+          <!-- Rows injected by generateInvoice() -->
+          <tbody id="prev-items-body"></tbody>
         </table>
 
-        <!-- TOTALS + TERMS -->
+        <!-- 6. Totals + Terms -->
         <div class="inv-totals-row">
           <div class="inv-terms">
             <strong>Terms &amp; Conditions</strong><br>
@@ -858,10 +999,11 @@
           </div>
         </div>
 
-        <!-- FOOTER: BANK + QR + SIGN -->
+        <!-- 7. Footer: Bank Details | QR Code | Signature -->
         <div class="inv-footer-row">
           <div class="inv-bank">
             <strong>Bank Details</strong>
+            <!-- Pre-filled bank values rendered here via JS -->
             <div><strong>Account No.:</strong> <span id="prev-bank-acc">—</span></div>
             <div><strong>IFSC:</strong> <span id="prev-bank-ifsc">—</span></div>
             <div><strong>Bank:</strong> <span id="prev-bank-name">—</span></div>
@@ -885,7 +1027,7 @@
           </div>
         </div>
 
-        <!-- DECLARATION -->
+        <!-- 8. Declaration strip -->
         <div class="inv-decl">
           <strong>Declaration:</strong> Products sold are for industrial usage only. Any other usage is not allowed &amp; purchaser shall be solely responsible.
           &nbsp;|&nbsp; <strong>Payment:</strong> Bank Transfer
@@ -895,17 +1037,46 @@
     </div><!-- #invoice-preview -->
 
   </main>
-</div>
+</div><!-- .workspace -->
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION: JAVASCRIPT
+     Sub-sections:
+       1.  PRODUCT CATALOG & COUNTER   — global state for loaded products
+       2.  XLSX PARSER                 — shared buffer → productCatalog
+       3.  AUTO-LOAD XLSX              — fetch('products.xlsx') on init
+       4.  MANUAL XLSX FALLBACK        — file input loader
+       5.  SELECT REFRESH              — rebuild <option> list
+       6.  ITEM ROWS                   — add / remove / populate rows
+       7.  GST CONTROLS                — rate select, custom %, IGST toggle
+       8.  RECALC (live)               — placeholder hook
+       9.  FORMATTING HELPERS          — fmt(), fmtN()
+      10.  GENERATE INVOICE            — main render function
+      11.  QR IMAGE LOADER             — manual + auto-load qr.png
+      12.  LOCALSTORAGE: SAVE/RESTORE  — persist firm & bank fields
+      13.  SIGNATURE LOADER            — manual + auto-load signature.png
+      14.  INITIALISATION              — set date, restore data, auto-loads
+═══════════════════════════════════════════════════════════════════════ -->
 <script>
-// ─── PRODUCT CATALOG (from XLSX) ────────────────────────────────────
-let productCatalog = []; // [{name, hsn, unit, price}]
+
+/* ─────────────────────────────────────────────────────────────────────
+   1. PRODUCT CATALOG & COUNTER
+   productCatalog: array of {name, hsn, unit, price} loaded from XLSX
+   itemCounter: auto-incrementing ID for each dynamic item row
+───────────────────────────────────────────────────────────────────── */
+let productCatalog = [];
 let itemCounter = 0;
 
-// ─── XLSX PARSER (shared) ────────────────────────────────────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   2. XLSX PARSER
+   Reads an ArrayBuffer, populates productCatalog, updates status banner,
+   and refreshes all existing product <select> elements.
+   Expected sheet columns: [0] Name  [1] HSN  [2] Unit  [3] Price
+───────────────────────────────────────────────────────────────────── */
 function parseXLSXBuffer(buffer, sourceName) {
-  const wb = XLSX.read(buffer, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const wb   = XLSX.read(buffer, { type: 'array' });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
   const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
   productCatalog = [];
@@ -920,74 +1091,95 @@ function parseXLSXBuffer(buffer, sourceName) {
     });
   }
 
-  // Update status banner
-  const s = document.getElementById('auto-status');
+  // Update the status banner to show success
   document.getElementById('auto-icon').textContent = '✅';
   document.getElementById('auto-msg').innerHTML =
     `<strong>${productCatalog.length} products</strong> loaded from <strong>${sourceName}</strong>`;
-  s.style.background = '#f1f8e9';
-  s.style.borderColor = '#aed581';
-  s.style.color = '#33691e';
+  const s = document.getElementById('auto-status');
+  s.style.background   = '#f1f8e9';
+  s.style.borderColor  = '#aed581';
+  s.style.color        = '#33691e';
 
-  // Refresh selects & add a row
+  // Refresh any already-rendered selects and add a blank row
   document.querySelectorAll('.item-product-select').forEach(sel => refreshSelect(sel));
   if (document.querySelectorAll('.item-row').length === 0) addItemRow();
 }
 
-// ─── AUTO-LOAD via fetch (works with VS Code Live Server) ────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   3. AUTO-LOAD XLSX
+   Attempts to fetch 'products.xlsx' from the same directory (works with
+   VS Code Live Server or any local HTTP server).
+   Falls back to showing the manual upload zone on failure.
+───────────────────────────────────────────────────────────────────── */
 async function autoLoadXLSX() {
   try {
     const res = await fetch('products.xlsx');
     if (!res.ok) throw new Error('Not found');
     const buffer = await res.arrayBuffer();
     parseXLSXBuffer(new Uint8Array(buffer), 'products.xlsx');
-  } catch(e) {
-    // Auto-load failed — show fallback upload
+  } catch (e) {
+    // Show warning and reveal manual upload fallback
     document.getElementById('auto-icon').textContent = '⚠️';
     document.getElementById('auto-msg').innerHTML =
       `<strong>products.xlsx</strong> not found in this folder. Place it here, or upload manually below.`;
     const s = document.getElementById('auto-status');
-    s.style.background = '#fff3e0';
-    s.style.borderColor = '#ffb74d';
-    s.style.color = '#e65100';
+    s.style.background   = '#fff3e0';
+    s.style.borderColor  = '#ffb74d';
+    s.style.color        = '#e65100';
     document.getElementById('upload-zone').style.display = 'block';
   }
 }
 
-// ─── MANUAL FALLBACK LOADER ──────────────────────────────────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   4. MANUAL XLSX FALLBACK
+   Called by the file <input> when the user picks a file manually.
+───────────────────────────────────────────────────────────────────── */
 function loadXLSXFromFile(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     try {
       parseXLSXBuffer(new Uint8Array(e.target.result), file.name);
-      const zone = document.getElementById('upload-zone');
-      zone.classList.add('loaded');
-    } catch(err) {
+      document.getElementById('upload-zone').classList.add('loaded');
+    } catch (err) {
       alert('Error reading XLSX. Make sure columns are: Name, HSN, Unit, Price');
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────
+   5. SELECT REFRESH
+   Rebuilds the <option> list of a product <select> from productCatalog.
+   Preserves the currently selected index if possible.
+───────────────────────────────────────────────────────────────────── */
 function refreshSelect(sel) {
   const current = sel.value;
-  // Keep manual option
-  sel.innerHTML = '<option value="">— Select Product —</option>' +
+  sel.innerHTML =
+    '<option value="">— Select Product —</option>' +
     productCatalog.map((p, i) =>
-      `<option value="${i}" ${current == i ? 'selected':''}>
+      `<option value="${i}" ${current == i ? 'selected' : ''}>
         ${p.name} (₹${p.price}/${p.unit})
       </option>`
     ).join('') +
     '<option value="manual">+ Manual Entry</option>';
 }
 
-// ─── ITEM ROWS ────────────────────────────────────────────────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   6. ITEM ROWS
+   addItemRow()      — appends a new product row to #items-list
+   onProductSelect() — auto-fills unit & price when a product is chosen
+   removeItem()      — deletes a row by its numeric ID
+───────────────────────────────────────────────────────────────────── */
 function addItemRow() {
-  const id = ++itemCounter;
+  const id   = ++itemCounter;
   const list = document.getElementById('items-list');
-  const div = document.createElement('div');
+  const div  = document.createElement('div');
   div.className = 'item-row';
   div.id = `item-${id}`;
   div.innerHTML = `
@@ -998,8 +1190,8 @@ function addItemRow() {
       ).join('')}
       <option value="manual">+ Manual Entry</option>
     </select>
-    <input type="number" class="item-qty" placeholder="Qty" min="0" oninput="recalc()" />
-    <input type="text"   class="item-unit" placeholder="KGS" style="font-size:11px" />
+    <input type="number" class="item-qty"   placeholder="Qty"   min="0" oninput="recalc()" />
+    <input type="text"   class="item-unit"  placeholder="KGS"   style="font-size:11px" />
     <input type="number" class="item-price" placeholder="Price" min="0" oninput="recalc()" />
     <button class="btn-icon" onclick="removeItem(${id})">✕</button>
   `;
@@ -1008,8 +1200,7 @@ function addItemRow() {
 }
 
 function onProductSelect(sel, id) {
-  const row = document.getElementById(`item-${id}`);
-  const qtyEl   = row.querySelector('.item-qty');
+  const row     = document.getElementById(`item-${id}`);
   const unitEl  = row.querySelector('.item-unit');
   const priceEl = row.querySelector('.item-price');
 
@@ -1018,10 +1209,7 @@ function onProductSelect(sel, id) {
     priceEl.value = '';
   } else {
     const p = productCatalog[parseInt(sel.value)];
-    if (p) {
-      unitEl.value  = p.unit;
-      priceEl.value = p.price;
-    }
+    if (p) { unitEl.value = p.unit; priceEl.value = p.price; }
   }
   recalc();
 }
@@ -1032,8 +1220,13 @@ function removeItem(id) {
   recalc();
 }
 
-// ─── GST SELECT ───────────────────────────────────────────────────────
-document.getElementById('gst_rate').addEventListener('change', function() {
+
+/* ─────────────────────────────────────────────────────────────────────
+   7. GST CONTROLS
+   Shows/hides the custom-% input; wires change events for live recalc.
+   getGSTRate() returns the effective numeric GST percentage.
+───────────────────────────────────────────────────────────────────── */
+document.getElementById('gst_rate').addEventListener('change', function () {
   document.getElementById('custom-gst-wrap').style.display =
     this.value === 'custom' ? 'block' : 'none';
   recalc();
@@ -1048,10 +1241,20 @@ function getGSTRate() {
   return parseFloat(sel) || 0;
 }
 
-// ─── RECALC (live) ────────────────────────────────────────────────────
-function recalc() { /* can hook in future */ }
 
-// ─── FORMAT ───────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────
+   8. RECALC (LIVE HOOK)
+   Placeholder — extend this function to show running totals in the
+   form panel as the user types.
+───────────────────────────────────────────────────────────────────── */
+function recalc() { /* future: live subtotal preview in form panel */ }
+
+
+/* ─────────────────────────────────────────────────────────────────────
+   9. FORMATTING HELPERS
+   fmt(n)  — returns ₹-prefixed Indian locale number (e.g. ₹1,23,456)
+   fmtN(n) — returns bare Indian locale number without ₹ prefix
+───────────────────────────────────────────────────────────────────── */
 function fmt(n) {
   return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
@@ -1059,11 +1262,16 @@ function fmtN(n) {
   return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
-// ─── GENERATE INVOICE ─────────────────────────────────────────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   10. GENERATE INVOICE
+   Collects all form values, calculates totals, and injects them into
+   the #invoice-preview card. Also handles vehicle no., QR, signature.
+───────────────────────────────────────────────────────────────────── */
 function generateInvoice() {
   const g = id => document.getElementById(id).value.trim();
 
-  // Collect items
+  // ── Collect & validate item rows ──
   const itemRows = document.querySelectorAll('.item-row');
   let items = [];
   itemRows.forEach(row => {
@@ -1090,49 +1298,53 @@ function generateInvoice() {
     return;
   }
 
-  const gstRate   = getGSTRate();
-  const useIGST   = document.getElementById('igst_toggle').checked;
-  const fwdCharge = parseFloat(document.getElementById('fwd_charge').value) || 0;
+  // ── Calculations ──
+  const gstRate    = getGSTRate();
+  const useIGST    = document.getElementById('igst_toggle').checked;
+  const fwdCharge  = parseFloat(document.getElementById('fwd_charge').value) || 0;
 
   let subtotal = 0;
   items.forEach(it => { it.amount = it.qty * it.price; subtotal += it.amount; });
-  const gstAmt   = Math.round(subtotal * gstRate / 100);
+  const gstAmt    = Math.round(subtotal * gstRate / 100);
   const grandTotal = subtotal + gstAmt + fwdCharge;
 
-  // ── Populate preview ────────────────────────────────────────────
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  };
+  // ── Helper: set textContent safely ──
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-  set('prev-my-addr',    g('my_addr') || 'New Town, Ward No. 5, Near Roadways Workshop, Tanakpur, Uttarakhand – 262309');
-  set('prev-my-gstin',   g('my_gstin') || '—');
-  set('prev-my-pan',     g('my_pan')   || '—');
-  set('prev-my-phone',   g('my_phone') || '—');
-  set('prev-my-email',   g('my_email') || '—');
-  set('prev-inv-no',     g('inv_no')   || '—');
-  set('prev-transport',  g('transport') || 'BY ROAD');
-  set('prev-station',    g('station')  || '—');
-  set('prev-place',      g('place_supply') || '—');
-  set('prev-eway',       g('eway')     || '—');
+  // ── Firm details ──
+  set('prev-my-addr',  g('my_addr')  || 'New Town, Ward No. 5, Near Roadways Workshop, Tanakpur, Uttarakhand – 262309');
+  set('prev-my-gstin', g('my_gstin') || '—');
+  set('prev-my-pan',   g('my_pan')   || '—');
+  set('prev-my-phone', g('my_phone') || '—');
+  set('prev-my-email', g('my_email') || '—');
 
+  // ── Invoice meta ──
+  set('prev-inv-no',    g('inv_no')       || '—');
+  set('prev-transport', g('transport')    || 'BY ROAD');
+  set('prev-station',   g('station')      || '—');
+  set('prev-place',     g('place_supply') || '—');
+  set('prev-eway',      g('eway')         || '—');
+
+  // ── Motor Vehicle Number (NEW) ──
+  set('prev-vehicle-no', g('vehicle_no') || '—');
+
+  // ── Date formatting ──
   const rawDate = g('inv_date');
-  const dispDate = rawDate ? new Date(rawDate).toLocaleDateString('en-IN') : '—';
-  set('prev-inv-date', dispDate);
+  set('prev-inv-date', rawDate ? new Date(rawDate).toLocaleDateString('en-IN') : '—');
 
-  const buyerName = g('buyer_name') || '—';
-  const buyerAddr = g('buyer_addr') || '—';
+  // ── Buyer / party details ──
+  const buyerName  = g('buyer_name')  || '—';
+  const buyerAddr  = g('buyer_addr')  || '—';
   const buyerGstin = g('buyer_gstin') || '—';
-  ['prev-buyer-name','prev-buyer-name2'].forEach(id => set(id, buyerName));
-  ['prev-buyer-addr','prev-buyer-addr2'].forEach(id => set(id, buyerAddr));
-  ['prev-buyer-gstin','prev-buyer-gstin2'].forEach(id => set(id, buyerGstin));
+  ['prev-buyer-name',  'prev-buyer-name2' ].forEach(id => set(id, buyerName));
+  ['prev-buyer-addr',  'prev-buyer-addr2' ].forEach(id => set(id, buyerAddr));
+  ['prev-buyer-gstin', 'prev-buyer-gstin2'].forEach(id => set(id, buyerGstin));
 
-  // Items table
+  // ── Build items table rows ──
   const tbody = document.getElementById('prev-items-body');
   tbody.innerHTML = '';
   items.forEach((it, idx) => {
-    const gstPerUnit = it.price * gstRate / 100;
-    const gstItemAmt = Math.round(it.qty * gstPerUnit);
+    const gstItemAmt = Math.round(it.qty * it.price * gstRate / 100);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="cen">${idx + 1}</td>
@@ -1149,65 +1361,70 @@ function generateInvoice() {
     `;
     tbody.appendChild(tr);
   });
-
-  // Add empty padding rows
+  // Pad to minimum 5 rows for a cleaner print layout
   for (let i = items.length; i < 5; i++) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>`;
     tbody.appendChild(tr);
   }
 
-  // Totals
-  const gstLabel = useIGST ? `IGST ${gstRate}%` : `CGST ${gstRate/2}% + SGST ${gstRate/2}%`;
+  // ── Totals ──
+  const gstLabel = useIGST
+    ? `IGST ${gstRate}%`
+    : `CGST ${gstRate / 2}% + SGST ${gstRate / 2}%`;
   document.getElementById('gst-label').textContent = gstLabel;
   set('prev-total', fmt(subtotal));
   set('prev-gst',   fmt(gstAmt));
   set('prev-fwd',   fmt(fwdCharge));
   set('prev-grand', fmt(grandTotal));
 
-  // Signature
+  // ── Signature ──
   const signImg = document.getElementById('prev-sign-img');
   if (signatureDataURL) {
-    signImg.src = signatureDataURL;
+    signImg.src           = signatureDataURL;
     signImg.style.display = 'block';
   } else {
     signImg.style.display = 'none';
   }
 
-  // QR Code
-  const qrImg = document.getElementById('prev-qr-img');
+  // ── QR Code ──
+  const qrImg         = document.getElementById('prev-qr-img');
   const qrPlaceholder = document.getElementById('prev-qr-placeholder');
   if (qrImageDataURL) {
-    qrImg.src = qrImageDataURL;
-    qrImg.style.display = 'block';
+    qrImg.src              = qrImageDataURL;
+    qrImg.style.display    = 'block';
     qrPlaceholder.style.display = 'none';
   } else {
-    qrImg.style.display = 'none';
+    qrImg.style.display    = 'none';
     qrPlaceholder.style.display = 'flex';
   }
 
-  // Bank
+  // ── Bank details ──
   set('prev-bank-acc',    g('bank_acc')    || '—');
   set('prev-bank-ifsc',   g('bank_ifsc')   || '—');
   set('prev-bank-name',   g('bank_name')   || '—');
   set('prev-bank-branch', g('bank_branch') || '—');
 
-  // Show
+  // ── Show preview ──
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('invoice-preview').style.display = 'block';
   document.getElementById('invoice-preview').scrollIntoView({ behavior: 'smooth' });
 }
 
-// ─── QR IMAGE LOADER ─────────────────────────────────────────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   11. QR IMAGE LOADER
+   loadQRImage()  — manual file upload handler
+   autoLoadQR()   — attempts to fetch 'qr.png' from the same directory
+───────────────────────────────────────────────────────────────────── */
 let qrImageDataURL = null;
 
 function loadQRImage(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     qrImageDataURL = e.target.result;
-    // Show thumbnail using DOM (avoids Edge innerHTML blocking)
     const wrap = document.getElementById('qr-preview-wrap');
     wrap.innerHTML = '';
     const img = document.createElement('img');
@@ -1215,68 +1432,111 @@ function loadQRImage(input) {
     img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
     wrap.appendChild(img);
   };
-  reader.onerror = function() {
-    alert('Could not read the image file. Please try again.');
-  };
+  reader.onerror = function () { alert('Could not read the image file. Please try again.'); };
   reader.readAsDataURL(file);
 }
 
-// ─── LOCALSTORAGE: SAVE & RESTORE FORM ──────────────────────────────
+async function autoLoadQR() {
+  try {
+    const res  = await fetch('qr.png');
+    if (!res.ok) throw new Error('Not found');
+    const blob = await res.blob();
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      qrImageDataURL = e.target.result;
+      const wrap = document.getElementById('qr-preview-wrap');
+      wrap.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = qrImageDataURL;
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+      wrap.appendChild(img);
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    // qr.png not present — silently skip; user can upload manually
+  }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────
+   12. LOCALSTORAGE: SAVE & RESTORE FORM
+   SAVED_FIELDS: list of input IDs whose values are persisted.
+   saveFormData()    — writes all to localStorage (also called on input)
+   restoreFormData() — reads back on page load
+   clearSavedData()  — wipes all saved entries (with confirmation)
+
+   DEFAULT VALUES for bank fields:
+     bank_name  → "State Bank of India"   (editable by user)
+     bank_acc   → "45173313830"
+     bank_ifsc  → "SBIN0002585"
+───────────────────────────────────────────────────────────────────── */
 const SAVED_FIELDS = [
-  'my_addr','my_gstin','my_pan','my_phone','my_email',
-  'bank_name','bank_branch','bank_acc','bank_ifsc',
-  'place_supply','transport','station',
-  'gst_rate','gst_custom','fwd_charge'
+  'my_addr', 'my_gstin', 'my_pan', 'my_phone', 'my_email',
+  'bank_name', 'bank_branch', 'bank_acc', 'bank_ifsc',
+  'place_supply', 'transport', 'station',
+  'gst_rate', 'gst_custom', 'fwd_charge'
 ];
+
+// Hard-coded defaults for Bhagwati Enterprises bank details
+// Change these if the account details ever change.
+const FIELD_DEFAULTS = {
+  bank_name: 'State Bank of India',
+  bank_acc:  '45173313830',   // ← Bhagwati Enterprises SBI account
+  bank_ifsc: 'SBIN0002585'    // ← SBI IFSC code
+};
+
+function restoreFormData() {
+  SAVED_FIELDS.forEach(id => {
+    const el  = document.getElementById(id);
+    if (!el) return;
+    const saved = localStorage.getItem('be_' + id);
+    if (saved !== null) {
+      el.value = saved;
+    } else if (FIELD_DEFAULTS[id] !== undefined) {
+      // Use hard-coded default if nothing saved yet
+      el.value = FIELD_DEFAULTS[id];
+    }
+  });
+  // Restore custom GST field visibility
+  if (document.getElementById('gst_rate').value === 'custom') {
+    document.getElementById('custom-gst-wrap').style.display = 'block';
+  }
+}
 
 function saveFormData() {
   SAVED_FIELDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) localStorage.setItem('be_' + id, el.value);
   });
-  // Show saved flash
-  const btn = document.querySelector('.generate-btn');
-  const orig = btn.textContent;
-  btn.textContent = '✓ Saved!';
-  btn.style.background = '#2e7d32';
-  setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1200);
-}
-
-function restoreFormData() {
-  SAVED_FIELDS.forEach(id => {
-    const val = localStorage.getItem('be_' + id);
-    const el = document.getElementById(id);
-    if (el && val !== null) el.value = val;
-  });
-  // Trigger custom GST visibility
-  const gstSel = document.getElementById('gst_rate');
-  if (gstSel && gstSel.value === 'custom') {
-    document.getElementById('custom-gst-wrap').style.display = 'block';
-  }
 }
 
 function clearSavedData() {
   if (!confirm('Clear all saved firm & bank details?')) return;
-  SAVED_FIELDS.forEach(id => localStorage.removeItem('be_' + id));
   SAVED_FIELDS.forEach(id => {
+    localStorage.removeItem('be_' + id);
     const el = document.getElementById(id);
-    if (el) el.value = '';
+    // Reset to default or blank
+    if (el) el.value = FIELD_DEFAULTS[id] || '';
   });
 }
 
-// Auto-save on any input change
-document.addEventListener('input', function(e) {
-  if (SAVED_FIELDS.includes(e.target.id)) {
+// Auto-save every time a relevant input changes
+document.addEventListener('input', function (e) {
+  if (SAVED_FIELDS.includes(e.target.id))
     localStorage.setItem('be_' + e.target.id, e.target.value);
-  }
 });
-document.addEventListener('change', function(e) {
-  if (SAVED_FIELDS.includes(e.target.id)) {
+document.addEventListener('change', function (e) {
+  if (SAVED_FIELDS.includes(e.target.id))
     localStorage.setItem('be_' + e.target.id, e.target.value);
-  }
 });
 
-// ─── SIGNATURE LOADER ────────────────────────────────────────────────
+
+/* ─────────────────────────────────────────────────────────────────────
+   13. SIGNATURE LOADER
+   Applies a signature image to a preview <div> by ID.
+   loadSignatureImage() — manual file input handler
+   autoLoadSignature()  — attempts to fetch 'signature.png' from dir
+───────────────────────────────────────────────────────────────────── */
 let signatureDataURL = null;
 
 function applySignatureToPreview(dataURL, previewId) {
@@ -1292,11 +1552,11 @@ function loadSignatureImage(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     signatureDataURL = e.target.result;
     applySignatureToPreview(signatureDataURL, 'sign-preview-wrap');
   };
-  reader.onerror = function() { alert('Could not read signature image.'); };
+  reader.onerror = function () { alert('Could not read signature image.'); };
   reader.readAsDataURL(file);
 }
 
@@ -1306,49 +1566,36 @@ async function autoLoadSignature() {
     if (!res.ok) throw new Error('Not found');
     const blob = await res.blob();
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       signatureDataURL = e.target.result;
       applySignatureToPreview(signatureDataURL, 'sign-preview-wrap');
     };
     reader.readAsDataURL(blob);
-  } catch(e) {
+  } catch (e) {
     // signature.png not found — user can upload manually
   }
 }
 
-// ─── AUTO-LOAD QR IMAGE ───────────────────────────────────────────────
-async function autoLoadQR() {
-  try {
-    const res = await fetch('qr.png');
-    if (!res.ok) throw new Error('Not found');
-    const blob = await res.blob();
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      qrImageDataURL = e.target.result;
-      const wrap = document.getElementById('qr-preview-wrap');
-      wrap.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = qrImageDataURL;
-      img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
-      wrap.appendChild(img);
-    };
-    reader.readAsDataURL(blob);
-  } catch(e) {
-    // qr.png not found — user can upload manually, no error shown
-  }
-}
 
-// ─── SET DEFAULT DATE ─────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────
+   14. INITIALISATION
+   Runs once on page load:
+     – Set today's date as default invoice date
+     – Restore saved firm/bank fields (with defaults for bank)
+     – Auto-load QR image (qr.png)
+     – Auto-load signature (signature.png)
+     – Auto-load product catalog (products.xlsx)
+     – Add a first blank item row if catalog load adds none
+───────────────────────────────────────────────────────────────────── */
 document.getElementById('inv_date').valueAsDate = new Date();
 
-// ─── INIT: restore saved data, auto-load XLSX + QR ───────────────────
 restoreFormData();
 autoLoadQR();
 autoLoadSignature();
 autoLoadXLSX().then(() => {
   if (document.querySelectorAll('.item-row').length === 0) addItemRow();
 });
-</script>
 
+</script>
 </body>
 </html>
